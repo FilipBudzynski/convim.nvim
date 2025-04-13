@@ -40,6 +40,7 @@ function Render_remote_buffer(payload)
 	end
 
 	vim.api.nvim_buf_set_lines(buf, 0, -1, false, payload.lines)
+	vim.api.nvim_set_current_buf(buf)
 end
 
 ---@param host string
@@ -72,12 +73,16 @@ function M.connect(host, port)
 				assert(not err, err)
 				if data then
 					print("raw data: ", data)
-					for line in data:gmatch("[^\r\n]+") do
-						local ok, payload = pcall(vim.fn.json_decode, line)
-						if ok and payload.type == "buffer" then
-							Render_remote_buffer(payload)
+					vim.schedule(function()
+						for line in data:gmatch("[^\r\n]+") do
+							local payload = vim.fn.json_decode(line)
+							if payload then
+								Render_remote_buffer(payload)
+							else
+								print("Failed to decode or unexpected payload: ", vim.insepct(line))
+							end
 						end
-					end
+					end)
 				end
 			end)
 		end)
@@ -99,7 +104,6 @@ function M.send_cursor()
 		line = pos[1],
 		col = pos[2],
 	}
-	-- local msg = string.format('{"line":%d,"col":%d}\n', pos[1], pos[2])
 	local msg = vim.fn.json_encode(payload) .. "\n"
 	client:write(msg)
 end

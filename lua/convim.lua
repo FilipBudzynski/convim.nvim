@@ -51,12 +51,14 @@ M.start = function(opts)
 	end, {})
 
 	vim.api.nvim_create_user_command("StartSession", function()
+		---@type uv.uv_tcp_t | nil
 		local client = tcp.connect("127.0.0.1", 9999)
 		if not client then
 			return
 		end
 		-- send the whole buffer
 		local payload = prepare_buffer_payload()
+		print("Sending buffer ", payload)
 		client:write(payload)
 	end, {})
 end
