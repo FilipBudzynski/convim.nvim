@@ -41,6 +41,13 @@ function Render_remote_buffer(payload)
 
 	vim.api.nvim_buf_set_lines(buf, 0, -1, false, payload.lines)
 	vim.api.nvim_set_current_buf(buf)
+
+	local filetype = vim.filetype.match({ filename = payload.bufname })
+	if filetype then
+		vim.bo[buf].filetype = filetype
+	else
+		print("Could not determine filetype for:", payload.bufname)
+	end
 end
 
 ---@param host string
