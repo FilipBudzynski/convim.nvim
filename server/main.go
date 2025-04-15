@@ -33,30 +33,32 @@ func main() {
 }
 
 func handleConnection(conn net.Conn) {
-	defer conn.Close()
-	reader := bufio.NewReader(conn)
+	clients[conn] = true
 
-	if _, ok := clients[conn]; !ok {
-		clients[conn] = true
+	defer func() {
+		conn.Close()
+		delete(clients, conn)
+	}()
 
-		if len(nvimBuff) != 0 {
-			go func(c net.Conn) {
-				time.Sleep(200 * time.Millisecond)
-				_, err := c.Write(nvimBuff)
-				if err != nil {
-					log.Println("buffer not sent:", err)
-				} else {
-					log.Println("sent buffer to new client")
-				}
-			}(conn)
-		}
+	if len(nvimBuff) != 0 {
+		func(c net.Conn) {
+			time.Sleep(200 * time.Millisecond)
+			_, err := c.Write(nvimBuff)
+			if err != nil {
+				log.Println("buffer not sent:", err)
+			} else {
+				log.Println("sent buffer to new client")
+			}
+		}(conn)
 	}
 
+	reader := bufio.NewReader(conn)
 	for {
 		msg, err := reader.ReadString('\n')
-        if err != nil { 
-            log.Println("Read error:", err)
-        }
+		if err != nil {
+			log.Println("Read error:", err)
+			return
+		}
 
 		if len(nvimBuff) == 0 {
 			nvimBuff = []byte(msg)

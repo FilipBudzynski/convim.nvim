@@ -18,15 +18,6 @@ end
 M.start = function(opts)
 	opts = opts or {}
 
-	vim.api.nvim_create_user_command("ConnectToServer", function()
-		tcp.connect("127.0.0.1", 9999)
-
-		vim.api.nvim_create_autocmd("CursorMoved", {
-			callback = tcp.send_cursor,
-			group = vim.api.nvim_create_augroup("GoServerCursorSync", { clear = true }),
-		})
-	end, {})
-
 	vim.api.nvim_create_user_command("StartConvimServer", function()
 		vim.fn.jobstart({ "go", "run", "../server/main.go" }, {
 			-- this is only for debug purposes
@@ -66,6 +57,19 @@ M.start = function(opts)
 				tcp.draw_cursor(decoded)
 			end
 		end)
+
+		vim.api.nvim_create_autocmd("CursorMoved", {
+			callback = tcp.send_cursor,
+			group = vim.api.nvim_create_augroup("GoServerCursorSync", { clear = true }),
+		})
+	end, {})
+
+	vim.api.nvim_create_user_command("ConnectToServer", function()
+		tcp.connect("127.0.0.1", 9999)
+		vim.api.nvim_create_autocmd("CursorMoved", {
+			callback = tcp.send_cursor,
+			group = vim.api.nvim_create_augroup("GoServerCursorSync", { clear = true }),
+		})
 	end, {})
 
 	vim.api.nvim_create_user_command("Disconnect", function()

@@ -87,7 +87,7 @@ function M.connect(host, port)
 	client = uv.new_tcp()
 	if not client then
 		print("new_tcp returned nil")
-		return
+		return nil
 	end
 
 	client:connect(host, port, function(err)
@@ -116,7 +116,7 @@ function M.connect(host, port)
 								local cursor = payload
 								M.draw_cursor(cursor)
 							else
-								print("Failed to decode or unexpected payload: ", vim.insepct(line))
+								print("Failed to decode or unexpected payload: ", vim.inspect(line))
 							end
 						end
 					end)
@@ -129,13 +129,13 @@ function M.connect(host, port)
 end
 
 function M.disconnect()
-	if client then
-		client:shutdown(function()
-			client:close()
-			client = nil
-			is_connected = false
-			vim.notify("Disconnected from TCP server")
-		end)
+	if client and is_connected then
+		client:shutdown()
+		client:close()
+		client = nil
+		is_connected = false
+		vim.notify("Disconnected from TCP server")
+
 		if extmark_id then
 			vim.api.nvim_buf_del_extmark(0, ns, extmark_id)
 		end
