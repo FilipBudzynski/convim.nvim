@@ -6,10 +6,40 @@ local is_connected = false
 local extmark_id = nil
 local ns = vim.api.nvim_create_namespace("convim_plugin")
 
+PAYLOAD_BUFFER_TYPE = "buffer"
+PAYLOAD_CURSOR_TYPE = "cursor"
+
 ---@class CursorPayload
 ---@field type string
 ---@field line integer
 ---@field col integer
+
+---@class BufferPayload
+---@field type string
+---@field lines string[]
+---@field bufname string
+
+function M.send_cursor()
+	if not client or not is_connected then
+		return
+	end
+
+	local line = vim.api.nvim_get_current_line()
+	if line == "" then
+		return
+	end
+
+	local pos = vim.api.nvim_win_get_cursor(0)
+
+	---@type CursorPayload
+	local payload = {
+		type = "cursor",
+		line = pos[1],
+		col = pos[2],
+	}
+	local cursor_payload = vim.fn.json_encode(payload) .. "\n"
+	client:write(cursor_payload)
+end
 
 ---@param cursor CursorPayload
 function M.draw_cursor(cursor)
@@ -17,7 +47,7 @@ function M.draw_cursor(cursor)
 		vim.api.nvim_buf_del_extmark(0, ns, extmark_id)
 	end
 
-	extmark_id = vim.api.nvim_buf_set_extmark(0, ns, cursor.line, cursor.col, {
+	extmark_id = vim.api.nvim_buf_set_extmark(0, ns, cursor.line - 1, cursor.col, {
 		end_col = cursor.col + 1,
 		virt_text_pos = "overlay",
 		hl_group = "Cursor",
@@ -25,13 +55,8 @@ function M.draw_cursor(cursor)
 	})
 end
 
----@class BufferPayload
----@field type "buffer"
----@field lines string[]
----@field bufname string
-
 ---@param payload BufferPayload
-function Render_remote_buffer(payload)
+function M.render_remote_buffer(payload)
 	local buf = vim.api.nvim_create_buf(true, false)
 	if payload.bufname then
 		vim.api.nvim_buf_set_name(buf, "[peer] " .. payload.bufname)
@@ -79,12 +104,17 @@ function M.connect(host, port)
 			client:read_start(function(err, data)
 				assert(not err, err)
 				if data then
-					print("raw data: ", data)
 					vim.schedule(function()
 						for line in data:gmatch("[^\r\n]+") do
 							local payload = vim.fn.json_decode(line)
-							if payload then
-								Render_remote_buffer(payload)
+							if payload.type == "buffer" then
+								---@type BufferPayload
+								local buffer = payload
+								M.render_remote_buffer(buffer)
+							elseif payload.type == "cursor" then
+								---@type CursorPayload
+								local cursor = payload
+								M.draw_cursor(cursor)
 							else
 								print("Failed to decode or unexpected payload: ", vim.insepct(line))
 							end
@@ -98,23 +128,6 @@ function M.connect(host, port)
 	return client
 end
 
-function M.send_cursor()
-	if not client or not is_connected then
-		return
-	end
-
-	local pos = vim.api.nvim_win_get_cursor(0)
-
-	---@type CursorPayload
-	local payload = {
-		type = "cursor",
-		line = pos[1],
-		col = pos[2],
-	}
-	local msg = vim.fn.json_encode(payload) .. "\n"
-	client:write(msg)
-end
-
 function M.disconnect()
 	if client then
 		client:shutdown(function()
@@ -123,6 +136,9 @@ function M.disconnect()
 			is_connected = false
 			vim.notify("Disconnected from TCP server")
 		end)
+		if extmark_id then
+			vim.api.nvim_buf_del_extmark(0, ns, extmark_id)
+		end
 	end
 end
 
