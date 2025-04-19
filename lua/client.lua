@@ -1,23 +1,12 @@
 local M = {}
 local uv = vim.uv
+local ui = require("ui")
 
 local client = nil
 local is_connected = false
-local extmark_id = nil
-local ns = vim.api.nvim_create_namespace("convim_plugin")
 
 PAYLOAD_BUFFER_TYPE = "buffer"
 PAYLOAD_CURSOR_TYPE = "cursor"
-
----@class CursorPayload
----@field type string
----@field line integer
----@field col integer
-
----@class BufferPayload
----@field type string
----@field lines string[]
----@field bufname string
 
 function M.send_cursor()
 	if not client or not is_connected then
@@ -39,40 +28,6 @@ function M.send_cursor()
 	}
 	local cursor_payload = vim.fn.json_encode(payload) .. "\n"
 	client:write(cursor_payload)
-end
-
----@param cursor CursorPayload
-function M.draw_cursor(cursor)
-	if extmark_id then
-		vim.api.nvim_buf_del_extmark(0, ns, extmark_id)
-	end
-
-	extmark_id = vim.api.nvim_buf_set_extmark(0, ns, cursor.line - 1, cursor.col, {
-		end_col = cursor.col + 1,
-		virt_text_pos = "overlay",
-		hl_group = "Cursor",
-		hl_mode = "combine",
-	})
-end
-
----@param payload BufferPayload
-function M.render_remote_buffer(payload)
-	local buf = vim.api.nvim_create_buf(true, false)
-	if payload.bufname then
-		vim.api.nvim_buf_set_name(buf, "[peer] " .. payload.bufname)
-	else
-		vim.api.nvim_buf_set_name(buf, "[peer] unnamed buffer")
-	end
-
-	vim.api.nvim_buf_set_lines(buf, 0, -1, false, payload.lines)
-	vim.api.nvim_set_current_buf(buf)
-
-	local filetype = vim.filetype.match({ filename = payload.bufname })
-	if filetype then
-		vim.bo[buf].filetype = filetype
-	else
-		print("Could not determine filetype for:", payload.bufname)
-	end
 end
 
 ---@param host string
@@ -108,13 +63,12 @@ function M.connect(host, port)
 						for line in data:gmatch("[^\r\n]+") do
 							local payload = vim.fn.json_decode(line)
 							if payload.type == "buffer" then
-								---@type BufferPayload
 								local buffer = payload
-								M.render_remote_buffer(buffer)
+								ui.set_buffer(buffer)
 							elseif payload.type == "cursor" then
 								---@type CursorPayload
 								local cursor = payload
-								M.draw_cursor(cursor)
+								ui.draw_cursor(cursor)
 							else
 								print("Failed to decode or unexpected payload: ", vim.inspect(line))
 							end
@@ -134,11 +88,8 @@ function M.disconnect()
 		client:close()
 		client = nil
 		is_connected = false
+		ui.remove_cursor()
 		vim.notify("Disconnected from TCP server")
-
-		if extmark_id then
-			vim.api.nvim_buf_del_extmark(0, ns, extmark_id)
-		end
 	end
 end
 

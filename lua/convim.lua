@@ -1,5 +1,6 @@
 local M = {}
 local tcp = require("client")
+local uv = vim.uv
 
 local function prepare_buffer_payload()
 	local lines = vim.api.nvim_buf_get_lines(0, 0, -1, false)
@@ -19,19 +20,20 @@ M.start = function(opts)
 	opts = opts or {}
 
 	vim.api.nvim_create_user_command("StartConvimServer", function()
-		vim.fn.jobstart({ "go", "run", "../server/main.go" }, {
-			-- this is only for debug purposes
-			on_stdout = function(_, data)
+		local file_dir = debug.getinfo(1, "S").source:sub(2):match("(.*/)")
+		local server_dir = vim.fs.normalize(file_dir .. "../server")
+
+		vim.system({ "go", "run", "." }, {
+			cwd = server_dir,
+			stdout = function(_, data)
 				if data then
-					for _, line in ipairs(data) do
-						if line ~= "" then
-							print("[GoServer] " .. line)
-						end
-					end
+					print("[GoServer] " .. data)
 				end
 			end,
-			on_stderr = function()
-				vim.notify("[GoServer ERROR] " .. vim.log.levels.ERROR)
+			stderr = function(_, data)
+				if data then
+					vim.notify("[GoServer ERROR] " .. vim.log.levels.ERROR .. data)
+				end
 			end,
 		})
 	end, {})
@@ -45,18 +47,6 @@ M.start = function(opts)
 		-- send the whole buffer
 		local payload = prepare_buffer_payload()
 		client:write(payload)
-		client:read_start(function(err, data)
-			if err then
-				print("Error getting data from server")
-				return
-			end
-			if data then
-				---@type CursorPayload
-				local decoded = vim.fn.json_decode(data)
-				print(decoded)
-				tcp.draw_cursor(decoded)
-			end
-		end)
 
 		vim.api.nvim_create_autocmd("CursorMoved", {
 			callback = tcp.send_cursor,
