@@ -1,7 +1,7 @@
 local M = {}
 local tcp = require("client")
-local uv = vim.uv
 
+-- should have some MAX BYTE not to transfer too large file
 local function prepare_buffer_payload()
 	local lines = vim.api.nvim_buf_get_lines(0, 0, -1, false)
 	local bufname = vim.api.nvim_buf_get_name(0)
@@ -18,18 +18,19 @@ end
 
 M.start = function(opts)
 	opts = opts or {}
-
 	vim.api.nvim_create_user_command("StartConvimServer", function()
 		local file_dir = debug.getinfo(1, "S").source:sub(2):match("(.*/)")
 		local server_dir = vim.fs.normalize(file_dir .. "../server")
 
 		vim.system({ "go", "run", "." }, {
 			cwd = server_dir,
+			-- debug
 			stdout = function(_, data)
 				if data then
 					print("[GoServer] " .. data)
 				end
 			end,
+			-- debug
 			stderr = function(_, data)
 				if data then
 					vim.notify("[GoServer ERROR] " .. vim.log.levels.ERROR .. data)
@@ -39,12 +40,10 @@ M.start = function(opts)
 	end, {})
 
 	vim.api.nvim_create_user_command("StartSession", function()
-		---@type uv.uv_tcp_t | nil
 		local client = tcp.connect("127.0.0.1", 9999)
 		if not client then
 			return
 		end
-		-- send the whole buffer
 		local payload = prepare_buffer_payload()
 		client:write(payload)
 
