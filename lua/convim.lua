@@ -4,18 +4,19 @@ local ConvimGroup = require("autocmd")
 
 M.start = function(opts)
 	opts = opts or {}
-
 	vim.api.nvim_create_user_command("StartConvimServer", function()
 		local file_dir = debug.getinfo(1, "S").source:sub(2):match("(.*/)")
 		local server_dir = vim.fs.normalize(file_dir .. "../server")
 
 		vim.system({ "go", "run", "." }, {
 			cwd = server_dir,
+			-- debug
 			stdout = function(_, data)
 				if data then
 					print("[GoServer] " .. data)
 				end
 			end,
+			-- debug
 			stderr = function(_, data)
 				if data then
 					vim.notify("[GoServer ERROR] " .. vim.log.levels.ERROR .. data)
