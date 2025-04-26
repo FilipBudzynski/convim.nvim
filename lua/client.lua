@@ -1,62 +1,38 @@
 local M = {}
 local uv = vim.uv
 local ui = require("ui")
+local payloads = require("payload")
 
-local client = nil
-local is_connected = false
+local Client = nil
 
 PAYLOAD_BUFFER_TYPE = "buffer"
 PAYLOAD_CURSOR_TYPE = "cursor"
-
-function M.send_cursor()
-	if not client or not is_connected then
-		return
-	end
-
-	local line = vim.api.nvim_get_current_line()
-	if line == "" then
-		return
-	end
-
-	local pos = vim.api.nvim_win_get_cursor(0)
-
-	---@type CursorPayload
-	local payload = {
-		type = "cursor",
-		line = pos[1],
-		col = pos[2],
-	}
-	local cursor_payload = vim.fn.json_encode(payload) .. "\n"
-	client:write(cursor_payload)
-end
 
 ---@param host string
 ---@param port integer
 ---@return uv.uv_tcp_t | nil
 function M.connect(host, port)
-	if client and is_connected then
+	if Client then
 		vim.notify("Already connected to TCP server", vim.log.levels.INFO)
 		return nil
 	end
 
-	client = uv.new_tcp()
-	if not client then
+	Client = uv.new_tcp()
+	if not Client then
 		print("new_tcp returned nil")
 		return nil
 	end
 
-	client:connect(host, port, function(err)
+	Client:connect(host, port, function(err)
 		vim.schedule(function()
 			if err then
 				vim.notify("TCP connection failed: " .. err, vim.log.levels.ERROR)
-				is_connected = false
 				return
 			end
 
-			is_connected = true
 			vim.notify("Connected to TCP server at " .. host .. ":" .. port)
 
-			client:read_start(function(err, data)
+			Client:read_start(function(err, data)
 				assert(not err, err)
 				if data then
 					vim.schedule(function()
@@ -79,15 +55,60 @@ function M.connect(host, port)
 		end)
 	end)
 
-	return client
+	return Client
+end
+
+function M.send_cursor()
+	if not Client then
+		return
+	end
+
+	local line = vim.api.nvim_get_current_line()
+	if line == "" then
+		return
+	end
+
+	local pos = vim.api.nvim_win_get_cursor(0)
+
+	local payload = payloads.CursorPayload:new(pos[1], pos[2])
+	Client:write(payload:encode())
+end
+
+function M.send_current_buffer()
+	if not Client then
+		print("No client connected to the server...")
+		return
+	end
+
+	local lines = vim.api.nvim_buf_get_lines(0, 0, -1, false)
+	local bufname = vim.api.nvim_buf_get_name(0)
+
+	local payload = {
+		type = "buffer",
+		lines = lines,
+		bufname = bufname,
+	}
+
+	local json_payload = vim.fn.json_encode(payload) .. "\n"
+	Client:write(json_payload)
+end
+
+function M.send_char()
+	if not Client then
+		return
+	end
+	local line = vim.api.nvim_get_current_line()
+	local pos = vim.api.nvim_win_get_cursor(0)
+	local payload = payloads.InputPayload:new(line, pos[1])
+	local json_payload = vim.fn.json_encode(payload) .. "\n"
+	Client:write(json_payload)
 end
 
 function M.disconnect()
-	if client and is_connected then
-		client:shutdown()
-		client:close()
-		client = nil
-		is_connected = false
+	if Client then
+		Client:shutdown()
+		Client:close()
+		Client = nil
 		ui.remove_cursor()
 		vim.notify("Disconnected from TCP server")
 	end

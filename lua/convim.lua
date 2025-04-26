@@ -1,20 +1,6 @@
 local M = {}
-local tcp = require("client")
-local uv = vim.uv
-
-local function prepare_buffer_payload()
-	local lines = vim.api.nvim_buf_get_lines(0, 0, -1, false)
-	local bufname = vim.api.nvim_buf_get_name(0)
-
-	local payload = {
-		type = "buffer",
-		lines = lines,
-		bufname = bufname,
-	}
-
-	local json = vim.fn.json_encode(payload) .. "\n"
-	return json
-end
+local Connection = require("client")
+local ConvimGroup = require("autocmd")
 
 M.start = function(opts)
 	opts = opts or {}
@@ -39,31 +25,33 @@ M.start = function(opts)
 	end, {})
 
 	vim.api.nvim_create_user_command("StartSession", function()
-		---@type uv.uv_tcp_t | nil
-		local client = tcp.connect("127.0.0.1", 9999)
-		if not client then
-			return
-		end
-		-- send the whole buffer
-		local payload = prepare_buffer_payload()
-		client:write(payload)
+		Connection.connect("127.0.0.1", 9999)
 
-		vim.api.nvim_create_autocmd("CursorMoved", {
-			callback = tcp.send_cursor,
-			group = vim.api.nvim_create_augroup("GoServerCursorSync", { clear = true }),
+		-- send the whole buffer
+		Connection.send_current_buffer()
+
+		vim.api.nvim_create_autocmd({ "CursorMoved" }, {
+			group = ConvimGroup,
+			callback = Connection.send_cursor,
 		})
 	end, {})
 
 	vim.api.nvim_create_user_command("ConnectToServer", function()
-		tcp.connect("127.0.0.1", 9999)
-		vim.api.nvim_create_autocmd("CursorMoved", {
-			callback = tcp.send_cursor,
-			group = vim.api.nvim_create_augroup("GoServerCursorSync", { clear = true }),
+		Connection.connect("127.0.0.1", 9999)
+
+		vim.api.nvim_create_autocmd({ "CursorMoved" }, {
+			group = ConvimGroup,
+			callback = Connection.send_cursor,
+		})
+
+		vim.api.nvim_create_autocmd({ "TextChangedI" }, {
+			group = ConvimGroup,
+			callback = Connection.send_char,
 		})
 	end, {})
 
 	vim.api.nvim_create_user_command("Disconnect", function()
-		tcp.disconnect()
+		Connection.disconnect()
 	end, {})
 end
 
