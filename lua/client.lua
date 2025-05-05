@@ -1,12 +1,9 @@
 local M = {}
 local uv = vim.uv
 local ui = require("ui")
-local payloads = require("payload")
+require("payloads")
 
 local Client = nil
-
-PAYLOAD_BUFFER_TYPE = "buffer"
-PAYLOAD_CURSOR_TYPE = "cursor"
 
 ---@param host string
 ---@param port integer
@@ -38,10 +35,16 @@ function M.connect(host, port)
 					vim.schedule(function()
 						for line in data:gmatch("[^\r\n]+") do
 							local payload = vim.fn.json_decode(line)
-							if payload.type == "buffer" then
+
+							if payload.type == Payload.PAYLOAD_BUFFER_TYPE then
 								local buffer = payload
 								ui.set_buffer(buffer)
-							elseif payload.type == "cursor" then
+							elseif payload.type == Payload.PAYLOAD_INPUT_TYPE then
+								---@type InputPayload
+								local line_input = payload
+								print(line_input.content)
+								ui.put(line_input)
+							elseif payload.type == Payload.PAYLOAD_CURSOR_TYPE then
 								---@type CursorPayload
 								local cursor = payload
 								ui.draw_cursor(cursor)
@@ -58,50 +61,33 @@ function M.connect(host, port)
 	return Client
 end
 
-function M.send_cursor()
-	if not Client then
-		return
-	end
-
-	local line = vim.api.nvim_get_current_line()
-	if line == "" then
-		return
-	end
-
-	local pos = vim.api.nvim_win_get_cursor(0)
-
-	local payload = payloads.CursorPayload:new(pos[1], pos[2])
-	Client:write(payload:encode())
-end
-
 function M.send_current_buffer()
 	if not Client then
 		print("No client connected to the server...")
 		return
 	end
 
-	local lines = vim.api.nvim_buf_get_lines(0, 0, -1, false)
-	local bufname = vim.api.nvim_buf_get_name(0)
+	Client:write(Payload:new_buffer():encode())
+end
 
-	local payload = {
-		type = "buffer",
-		lines = lines,
-		bufname = bufname,
-	}
+function M.send_cursor()
+	local line = vim.api.nvim_get_current_line()
+	if not Client or line == "" then
+		return
+	end
 
-	local json_payload = vim.fn.json_encode(payload) .. "\n"
-	Client:write(json_payload)
+	Client:write(Payload:new_cursor():encode())
 end
 
 function M.send_char()
 	if not Client then
 		return
 	end
-	local line = vim.api.nvim_get_current_line()
-	local pos = vim.api.nvim_win_get_cursor(0)
-	local payload = payloads.InputPayload:new(line, pos[1])
-	local json_payload = vim.fn.json_encode(payload) .. "\n"
-	Client:write(json_payload)
+
+	local p = Payload:new_input()
+	-- debug
+	print(p.content[1])
+	Client:write(p:encode())
 end
 
 function M.disconnect()

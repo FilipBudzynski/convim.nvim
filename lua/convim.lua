@@ -45,6 +45,10 @@ M.start = function(opts)
 			callback = Connection.send_cursor,
 		})
 
+		vim.api.nvim_buf_attach(0, false, {
+			on_bytes = Connection.send_char,
+		})
+
 		vim.api.nvim_create_autocmd({ "TextChangedI" }, {
 			group = ConvimGroup,
 			callback = Connection.send_char,
