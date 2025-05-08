@@ -44,6 +44,12 @@ function Payload.encode(o)
 	return vim.fn.json_encode(o) .. "\n"
 end
 
+function Payload:tostring()
+	for _, v in ipairs(self) do
+		print(v)
+	end
+end
+
 ---@return BufferPayload
 local function new_buffer()
 	local lines = vim.api.nvim_buf_get_lines(CURRENT_BUFFER, WHOLE_BUFFER[1], WHOLE_BUFFER[2], false)
@@ -95,17 +101,16 @@ function Payload:new_change(
 	new_end_byte
 )
 	-- print("start row: " .. sr)
-	-- print("old end row: " .. old_er)
 	-- print("new end row: " .. new_er)
 	-- print("<<<<<<<<<<<<")
 	-- print("start col: " .. sc)
-	-- print("old end col: " .. old_ec)
 	-- print("new end col: " .. new_ec)
 	-- print("buf: " .. buf)
 	if new_er == 0 then
 		new_er = sr
 	end
 	local content = vim.api.nvim_buf_get_text(buf, sr, sc, new_er, new_ec, {})
+	print("content: " .. content[1])
 	local o = {
 		type = Payload.PAYLOAD_CHANGE_TYPE,
 		buf = buf,

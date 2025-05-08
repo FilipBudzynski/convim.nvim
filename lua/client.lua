@@ -4,6 +4,7 @@ local ui = require("ui")
 require("payloads")
 
 local Client = nil
+local ignore = {}
 
 -- the string "bytes"
 -- buffer id
@@ -19,6 +20,11 @@ local Client = nil
 -- new end byte length of the changed text
 function M.send_change(_, buf, changedtick, sr, sc, offset, old_er, old_ec, old_end_byte, new_er, new_ec, new_end_byte)
 	if not Client then
+		return
+	end
+
+	if ignore[changedtick] then
+		ignore[changedtick] = nil
 		return
 	end
 
@@ -58,6 +64,7 @@ function M.connect(host, port)
 					vim.schedule(function()
 						for line in data:gmatch("[^\r\n]+") do
 							local payload = vim.fn.json_decode(line)
+
 							if payload.type == Payload.PAYLOAD_BUFFER_TYPE then
 								ui.set_buffer(payload)
 							-- local bf = ui.set_buffer(payload)
@@ -73,6 +80,9 @@ function M.connect(host, port)
 								local cursor = payload
 								ui.draw_cursor(cursor)
 							elseif payload.type == Payload.PAYLOAD_CHANGE_TYPE then
+								--TODO: "0" should be changed to buffers and not only current buf
+								local tick = vim.api.nvim_buf_get_changedtick(0) + 1
+								ignore[tick] = true
 								ui.put(payload)
 							else
 								print("Failed to decode or unexpected payload: ", vim.inspect(line))

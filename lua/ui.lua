@@ -41,10 +41,14 @@ end
 
 ---@param change ChangePayload
 function M.put(change)
-	--	vim.api.nvim_buf_set_lines(0, line_payload.row_nr - 1, line_payload.row_nr, false, line_payload.content)
-	-- print("conente to put: " .. change.new_content[1])
-	-- print("buf nr: " .. change.buf)
-	vim.api.nvim_buf_set_text(0, change.sr, change.sc, change.new_er, change.new_ec, change.new_content)
+	print("we have content: " .. change.new_content[1])
+	-- for k, v in pairs(change) do
+	-- 	print(k .. " = " .. v)
+	-- end
+    if change.old_er == 0 then
+        change.old_er = change.sr
+    end
+	vim.api.nvim_buf_set_text(0, change.sr, change.sc, change.old_er, change.old_ec, change.new_content)
 end
 
 function M.remove_cursor()
