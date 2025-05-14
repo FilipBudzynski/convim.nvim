@@ -3,7 +3,8 @@ Payload = {}
 Payload.PAYLOAD_BUFFER_TYPE = "buffer"
 Payload.PAYLOAD_INPUT_TYPE = "input"
 Payload.PAYLOAD_CURSOR_TYPE = "cursor"
-Payload.PAYLOAD_CHANGE_TYPE = "change"
+Payload.BYTE_CHANGE = "byte"
+Payload.LINE_CHANGE = "line"
 
 local CURRENT_BUFFER = 0
 local WHOLE_BUFFER = { 0, -1 }
@@ -25,6 +26,7 @@ local WHOLE_BUFFER = { 0, -1 }
 ---@field content string[]
 
 ---@class ChangePayload
+---@field type string,
 ---@field buf integer,
 ---@field changedtick integer,
 ---@field sr integer,
@@ -72,21 +74,18 @@ local function new_cursor()
 	}
 end
 
----@return InputPayload
-local function new_input()
-	local pos = vim.api.nvim_win_get_cursor(CURRENT_BUFFER)
-	local line = vim.api.nvim_get_current_line()
-	local content = line[pos[2]]
-	print(content)
-
-	return {
-		type = Payload.PAYLOAD_INPUT_TYPE,
-		row_nr = pos[1],
-		col_nr = pos[2],
-		content = { content },
-	}
-end
-
+---@param buf integer
+---@param changedtick integer,
+---@param sr integer,
+---@param sc integer,
+---@param offset integer,
+---@param old_er integer,
+---@param old_ec integer,
+---@param old_end_byte integer,
+---@param new_er integer,
+---@param new_ec integer,
+---@param new_end_byte integer
+---@return ChangePayload
 function Payload:new_change(
 	buf,
 	changedtick,
@@ -100,19 +99,11 @@ function Payload:new_change(
 	new_ec,
 	new_end_byte
 )
-	-- print("start row: " .. sr)
-	-- print("new end row: " .. new_er)
-	-- print("<<<<<<<<<<<<")
-	-- print("start col: " .. sc)
-	-- print("new end col: " .. new_ec)
-	-- print("buf: " .. buf)
-	if new_er == 0 then
-		new_er = sr
-	end
-	local content = vim.api.nvim_buf_get_text(buf, sr, sc, new_er, new_ec, {})
-	print("content: " .. content[1])
-	local o = {
-		type = Payload.PAYLOAD_CHANGE_TYPE,
+	-- TODO: if more than one rows has been changed,
+	-- the whole lines should be rewritten
+
+	local payload = {
+		type = "",
 		buf = buf,
 		changedtick = changedtick,
 		sr = sr,
@@ -124,19 +115,35 @@ function Payload:new_change(
 		new_er = new_er,
 		new_ec = new_ec,
 		new_end_byte = new_end_byte,
-		new_content = content,
+		new_content = {},
 	}
-	setmetatable(o, self)
-	return o
+
+	local content = {}
+	if new_er > 0 then
+		content = vim.api.nvim_buf_get_lines(buf, sr, sr + new_er, false)
+		payload.type = Payload.LINE_CHANGE
+	else
+		content = vim.api.nvim_buf_get_text(buf, sr, sc, sr, sc + new_end_byte, {})
+		payload.type = Payload.BYTE_CHANGE
+	end
+
+	payload.new_content = content
+
+	-- debug
+	for _, line in ipairs(content) do
+		print(line)
+	end
+
+	setmetatable(payload, self)
+	return payload
 end
 
 local factory = {
 	buffer = new_buffer,
 	cursor = new_cursor,
-	input = new_input,
 }
 
----@param choice string describes the paylaod type "buffer" | "cursor" | "input"
+---@param choice string describes the paylaod type "buffer" | "cursor"
 function Payload:new(choice)
 	if factory[choice] then
 		local payload = factory[choice]()

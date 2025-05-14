@@ -38,7 +38,7 @@ M.start = function(opts)
 		})
 
 		local _ = vim.api.nvim_buf_attach(0, false, {
-			on_bytes = Connection.send_change,
+			on_bytes = Connection.send_byte_change,
 		})
 
 		-- local success = vim.api.nvim_buf_attach(0, false, {
@@ -60,7 +60,7 @@ M.start = function(opts)
 		})
 
 		local _ = vim.api.nvim_buf_attach(0, false, {
-			on_bytes = Connection.send_change,
+			on_bytes = Connection.send_byte_change,
 		})
 
 		-- local buf = vim.api.nvim_get_current_buf()

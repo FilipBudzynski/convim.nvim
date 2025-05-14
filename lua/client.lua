@@ -18,7 +18,20 @@ local ignore = {}
 -- new end row of the changed text (offset from start row)
 -- new end column of the changed text (if new end row = 0, offset from start column)
 -- new end byte length of the changed text
-function M.send_change(_, buf, changedtick, sr, sc, offset, old_er, old_ec, old_end_byte, new_er, new_ec, new_end_byte)
+function M.send_byte_change(
+	_,
+	buf,
+	changedtick,
+	sr,
+	sc,
+	offset,
+	old_er,
+	old_ec,
+	old_end_byte,
+	new_er,
+	new_ec,
+	new_end_byte
+)
 	if not Client then
 		return
 	end
@@ -79,8 +92,7 @@ function M.connect(host, port)
 								---@type CursorPayload
 								local cursor = payload
 								ui.draw_cursor(cursor)
-							elseif payload.type == Payload.PAYLOAD_CHANGE_TYPE then
-								--TODO: "0" should be changed to buffers and not only current buf
+							elseif payload.type == Payload.BYTE_CHANGE then
 								local tick = vim.api.nvim_buf_get_changedtick(0) + 1
 								ignore[tick] = true
 								ui.put(payload)
@@ -113,17 +125,6 @@ function M.send_cursor()
 	end
 
 	Client:write(Payload:new("cursor"):encode())
-end
-
-function M.send_char()
-	if not Client then
-		return
-	end
-
-	local p = Payload:new("input")
-	-- debug
-	print(p.content[1])
-	Client:write(p:encode())
 end
 
 function M.disconnect()

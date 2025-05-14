@@ -41,14 +41,16 @@ end
 
 ---@param change ChangePayload
 function M.put(change)
-	print("we have content: " .. change.new_content[1])
-	-- for k, v in pairs(change) do
-	-- 	print(k .. " = " .. v)
-	-- end
-    if change.old_er == 0 then
-        change.old_er = change.sr
-    end
-	vim.api.nvim_buf_set_text(0, change.sr, change.sc, change.old_er, change.old_ec, change.new_content)
+	if change.type == Payload.BYTE_CHANGE then
+		vim.api.nvim_buf_set_text(
+			0,
+			change.sr,
+			change.sc,
+			change.sr,
+			change.sc + change.old_ec,
+			change.new_content
+		)
+	end
 end
 
 function M.remove_cursor()
