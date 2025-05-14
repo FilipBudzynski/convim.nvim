@@ -1,7 +1,6 @@
 Payload = {}
 
 Payload.PAYLOAD_BUFFER_TYPE = "buffer"
-Payload.PAYLOAD_INPUT_TYPE = "input"
 Payload.PAYLOAD_CURSOR_TYPE = "cursor"
 Payload.BYTE_CHANGE = "byte"
 Payload.LINE_CHANGE = "line"

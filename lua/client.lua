@@ -6,6 +6,19 @@ require("payloads")
 local Client = nil
 local ignore = {}
 
+local function handle_byte_payload(payload)
+	local tick = vim.api.nvim_buf_get_changedtick(0) + 1
+	ignore[tick] = true
+	ui.put(payload)
+end
+
+local handle_payload = {
+	buffer = ui.set_buffer,
+	cursor = ui.draw_cursor,
+	byte = handle_byte_payload,
+	--line = handle_line_payload,
+}
+
 -- the string "bytes"
 -- buffer id
 -- b:changedtick
@@ -42,8 +55,17 @@ function M.send_byte_change(
 	end
 
 	Client:write(
-		Payload:new_change(buf, changedtick, sr, sc, offset, old_er, old_ec, old_end_byte, new_er, new_ec, new_end_byte)
-			:encode()
+		Payload:new_change(buf,
+            changedtick,
+            sr,
+            sc,
+            offset,
+            old_er,
+            old_ec,
+            old_end_byte,
+            new_er,
+            new_ec,
+            new_end_byte):encode()
 	)
 end
 
@@ -73,35 +95,22 @@ function M.connect(host, port)
 
 			Client:read_start(function(err, data)
 				assert(not err, err)
-				if data then
-					vim.schedule(function()
-						for line in data:gmatch("[^\r\n]+") do
-							local payload = vim.fn.json_decode(line)
-
-							if payload.type == Payload.PAYLOAD_BUFFER_TYPE then
-								ui.set_buffer(payload)
-							-- local bf = ui.set_buffer(payload)
-							-- vim.api.nvim_set_current_buf(bf)
-
-							-- elseif payload.type == Payload.PAYLOAD_INPUT_TYPE then
-							-- 	---@type InputPayload
-							-- 	local line_input = payload
-							-- 	print(line_input.content)
-							-- 	ui.put(line_input)
-							elseif payload.type == Payload.PAYLOAD_CURSOR_TYPE then
-								---@type CursorPayload
-								local cursor = payload
-								ui.draw_cursor(cursor)
-							elseif payload.type == Payload.BYTE_CHANGE then
-								local tick = vim.api.nvim_buf_get_changedtick(0) + 1
-								ignore[tick] = true
-								ui.put(payload)
-							else
-								print("Failed to decode or unexpected payload: ", vim.inspect(line))
-							end
-						end
-					end)
+				if not data then
+					print("LOG: no data received")
+					return
 				end
+
+				vim.schedule(function()
+					for line in data:gmatch("[^\r\n]+") do
+						local payload = vim.fn.json_decode(line)
+
+						if not handle_payload[payload.type] then
+							print('LOG: unsupported payload type "' .. payload.type .. '"')
+							return
+						end
+						handle_payload[payload.type](payload)
+					end
+				end)
 			end)
 		end)
 	end)
