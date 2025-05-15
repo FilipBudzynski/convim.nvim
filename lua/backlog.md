@@ -7,5 +7,7 @@ example: person A writes "f" on the col = 0, then does undo, nothing changes in 
 [] - first input is doubled
 example: person A writes "f", person B receives "ff"
 
+[] - buffer is doubled
+
 ## Input newline
 [] - need to create line buffer changes for newlines in client.lua

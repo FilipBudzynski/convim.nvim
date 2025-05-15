@@ -41,14 +41,12 @@ end
 
 ---@param change ChangePayload
 function M.put(change)
-	if change.type == Payload.BYTE_CHANGE then
-		vim.api.nvim_buf_set_text(0, change.sr, change.sc, change.sr, change.sc + change.old_ec, change.new_content)
-	end
+	vim.api.nvim_buf_set_text(0, change.sr, change.sc, change.sr, change.sc + change.old_ec, change.new_content)
 end
 
 ---@param change ChangePayload
 function M.put_line(change)
-	--TODO: put line
+	vim.api.nvim_buf_set_lines(0, change.sr, change.sr + change.old_er, false, change.new_content)
 end
 
 function M.remove_cursor()

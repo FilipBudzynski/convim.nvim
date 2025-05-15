@@ -6,17 +6,20 @@ require("payloads")
 local Client = nil
 local ignore = {}
 
-local function handle_byte_payload(payload)
-	local tick = vim.api.nvim_buf_get_changedtick(0) + 1
-	ignore[tick] = true
-	ui.put(payload)
+local function with_ignore_next_tick(fn)
+	return function(payload)
+		local tick = vim.api.nvim_buf_get_changedtick(0) + 1
+		ignore[tick] = true
+		fn(payload)
+	end
 end
 
 local handle_payload = {
-	buffer = ui.set_buffer,
+	-- buffer = with_ignore_next_tick(ui.set_buffer),
+	buffer = with_ignore_next_tick(ui.set_buffer),
 	cursor = ui.draw_cursor,
-	byte = handle_byte_payload,
-	--line = handle_line_payload,
+	byte = with_ignore_next_tick(ui.put),
+	line = with_ignore_next_tick(ui.put_line),
 }
 
 -- the string "bytes"
@@ -55,17 +58,8 @@ function M.send_byte_change(
 	end
 
 	Client:write(
-		Payload:new_change(buf,
-            changedtick,
-            sr,
-            sc,
-            offset,
-            old_er,
-            old_ec,
-            old_end_byte,
-            new_er,
-            new_ec,
-            new_end_byte):encode()
+		Payload:new_change(buf, changedtick, sr, sc, offset, old_er, old_ec, old_end_byte, new_er, new_ec, new_end_byte)
+			:encode()
 	)
 end
 

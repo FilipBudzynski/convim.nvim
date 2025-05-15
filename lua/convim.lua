@@ -40,19 +40,10 @@ M.start = function(opts)
 		local _ = vim.api.nvim_buf_attach(0, false, {
 			on_bytes = Connection.send_byte_change,
 		})
-
-		-- local success = vim.api.nvim_buf_attach(0, false, {
-		-- 	-- on_bytes = Connection.send_change,
-		-- 	on_bytes = function()
-		-- 		print("buffer changed")
-		-- 	end,
-		-- })
-		-- print(success)
 	end, {})
 
 	vim.api.nvim_create_user_command("ConnectToServer", function()
 		Connection.connect("127.0.0.1", 9999)
-		print("we are after the connection")
 
 		vim.api.nvim_create_autocmd({ "CursorMoved" }, {
 			group = ConvimGroup,
@@ -62,19 +53,6 @@ M.start = function(opts)
 		local _ = vim.api.nvim_buf_attach(0, false, {
 			on_bytes = Connection.send_byte_change,
 		})
-
-		-- local buf = vim.api.nvim_get_current_buf()
-		-- local success = vim.api.nvim_buf_attach(buf, false, {
-		-- 	-- on_bytes = Connection.send_change,
-		-- 	on_bytes = function()
-		-- 		print("buffer changed")
-		-- 	end,
-		-- })
-
-		-- vim.api.nvim_create_autocmd({ "TextChangedI" }, {
-		-- 	group = ConvimGroup,
-		-- 	callback = Connection.send_char,
-		-- })
 	end, {})
 
 	vim.api.nvim_create_user_command("Disconnect", function()
