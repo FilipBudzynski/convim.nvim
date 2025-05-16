@@ -8,14 +8,13 @@ local ignore = {}
 
 local function with_ignore_next_tick(fn)
 	return function(payload)
-		local tick = vim.api.nvim_buf_get_changedtick(0) + 1
+		local tick = vim.api.nvim_buf_get_changedtick(0)
 		ignore[tick] = true
 		fn(payload)
 	end
 end
 
 local handle_payload = {
-	-- buffer = with_ignore_next_tick(ui.set_buffer),
 	buffer = with_ignore_next_tick(ui.set_buffer),
 	cursor = ui.draw_cursor,
 	byte = with_ignore_next_tick(ui.put),

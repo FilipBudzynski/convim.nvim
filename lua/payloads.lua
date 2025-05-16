@@ -119,6 +119,7 @@ function Payload:new_change(
 
 	local content = {}
 	if new_er > 0 then
+		print("start_row: " .. sr .. " end_row: " .. sr + new_er)
 		content = vim.api.nvim_buf_get_lines(buf, sr, sr + new_er, false)
 		payload.type = Payload.LINE_CHANGE
 	else
@@ -127,11 +128,6 @@ function Payload:new_change(
 	end
 
 	payload.new_content = content
-
-	-- debug
-	for _, line in ipairs(content) do
-		print(line)
-	end
 
 	setmetatable(payload, self)
 	return payload

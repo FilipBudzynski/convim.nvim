@@ -46,6 +46,7 @@ end
 
 ---@param change ChangePayload
 function M.put_line(change)
+	print("start_row: " .. change.sr .. " end_row: " .. change.sr + change.new_er)
 	vim.api.nvim_buf_set_lines(0, change.sr, change.sr + change.old_er, false, change.new_content)
 end
 
